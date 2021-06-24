@@ -1,0 +1,16 @@
+[Unit]
+Description=LogService
+After=multi-user.target
+
+[Service]
+TimeoutSec=5
+TimeoutStartSec=5
+TimeoutStopSec=5
+Type=simple
+Restart=always
+WorkingDirectory=/etc/logservice
+ExecStart=/etc/logservice/logservice
+
+[Install]
+WantedBy=multi-user.target
+
