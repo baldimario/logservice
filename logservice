@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 import os
 import atexit
 import signal
@@ -14,21 +14,21 @@ BUFFER_SIZE = 1024
 TELEGRAM_BOT_KEY = '1854081083:AAGXNqB_eNjm-ca8fZ4LqgAmYTd6XI1hgf0'
 TELEGRAM_IDS = list()
 PATH_CHAT_IDS = '/var/log/logservice/chat_ids'
-PATH_LOGS = '/var/log/logservice'
+PATH_LOGS = '/var/log/logservice/logs'
 
 def init():
 	global PATH_CHAT_IDS, PATH_LOGS
-	
+
 	if not os.path.exists(PATH_LOGS):
 		os.makedirs(PATH_LOGS)
-		
+
 	if not os.path.exists(PATH_CHAT_IDS):
 		os.system('touch {}'.format(PATH_CHAT_IDS))
 
 	load_chat_ids()
 	MessageLoop(bot, handle).run_as_thread()
 	announce('/!\\ STARTED /!\\')
-	
+
 def load_chat_ids():
 	global TELEGRAM_IDS, PATH_CHAT_IDS
 	with open(PATH_CHAT_IDS, 'r') as f:
@@ -50,35 +50,37 @@ def write_log(msg, address=''):
 		now.hour,
 		now.minute,
 		now.second
-	) 
-	
+	)
+
 	pathlog = PATH_LOGS
-	
+
+	prefix = msg.split()[2].replace(':', '')
+
 	if address != '':
-		devicepath = os.path.join(PATH_LOGS, address)
+		devicepath = os.path.join(PATH_LOGS, prefix)
 		if not os.path.exists(devicepath):
 			os.makedirs(devicepath)
 		pathlog = devicepath
-			
-	logfile = os.path.join(pathlog, 
+
+	logfile = os.path.join(pathlog,
 		'{}-{}-{}.txt'.format(now.year, now.month, now.day))
-	
+
 	with open(logfile, 'a') as f:
 		f.write("{date}: {message}\n".format(date=date, message=msg))
-		
+
 bot = telepot.Bot(TELEGRAM_BOT_KEY)
 
 def announce(message, address=''):
 	global TELEGRAM_IDS
 	write_log(message, address)
-		
+
 	for telegram_id in TELEGRAM_IDS:
 		print('Sending {message} to {telegram_id}'.format(
 			message=message,
 			telegram_id=telegram_id
 			)
 		)
-		
+
 		try:
 			bot.sendMessage(telegram_id, message)
 		except telepot.exception.TelegramError:
@@ -88,11 +90,11 @@ def announce(message, address=''):
 def handle(msg):
 	global TELEGRAM_IDS
 	content_type, chat_type, chat_id = telepot.glance(msg)
-	
+
 	if chat_id not in TELEGRAM_IDS:
 		TELEGRAM_IDS.append(chat_id)
 		save_chat_ids()
-		
+
 		message = '/!\\ NEW USER USES BOT: {} /!\\'.format(chat_id)
 		announce(message)
 
@@ -101,25 +103,25 @@ def main():
 	sock.bind((UDP_BIND_IP, UDP_BIND_PORT))
 
 	while True:
-		data, addr = sock.recvfrom(BUFFER_SIZE) 
-		
+		data, addr = sock.recvfrom(BUFFER_SIZE)
+
 		address = addr[0]
 		log = data.decode('ascii')
-		
+
 		message = '{address}: {log}'.format(
 			address=address,
 			log=log
 		)
-		
+
 		announce(message, address=address)
-		
+
 	main()
 
 def receiveSignal(signalNumber, frame):
 	announce('/!\\ KILLED /!\\')
 	return 0
-    
-if __name__ == '__main__':	
+
+if __name__ == '__main__':
 	atexit.register(announce, '/!\\ STOPPED /!\\')
 	signal.signal(signal.SIGTERM, receiveSignal)
 	init()
